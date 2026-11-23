@@ -8,11 +8,11 @@ pip install uvicorn["standard"] sqlalchemy pyjwt pwdlib["argon2"] python-multipa
 pip install requirements.txt
 pip freeze > requirements.txt
 
-python -c "from pathlib import Path; import secrets; Path('.env').write_text(f'JWT_SECRET_KEY={secrets.token_hex(32)}', encoding='utf-8')"
+python -c "from pathlib import Path; import secrets; Path('.env').write_text(f'JWT_SECRET_KEY={secrets.token_hex(32)}', encoding='utf-8')" - если нет JWT_SECRET_KEY
 
 uvicorn main:app --reload
 
-npm create vite@latest - если нет JWT_SECRET_KEY
+npm create vite@latest 
 npm i
 cd client -> npm install axios
 
