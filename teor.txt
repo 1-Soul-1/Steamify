@@ -12,8 +12,10 @@ python -c "from pathlib import Path; import secrets; Path('.env').write_text(f'J
 
 uvicorn main:app --reload
 
-npm create vite@latest
+npm create vite@latest - если нет JWT_SECRET_KEY
+npm i
 cd client -> npm install axios
 
-
+cd backend --> python main.py runserver
+cd client --> npm run dev
 
