@@ -1,0 +1,189 @@
+/* Общий стиль для карточек (формы и экрана профиля) */
+.card,
+form,
+#root > div {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.2);
+  padding: 36px 32px;
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+h1 {
+  font-size: 28px;
+  font-weight: 800;
+  text-align: center;
+  color: var(--text-main);
+  letter-spacing: -0.5px;
+  margin-bottom: 8px;
+}
+
+/* ========================================= */
+/* СТИЛИЗАЦИЯ ВКЛАДОК (Вход / Регистрация)    */
+/* ========================================= */
+form > div:nth-child(2) {
+  display: flex;
+  background: var(--bg-input);
+  border-radius: 8px;
+  padding: 4px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border-color);
+}
+
+form > div:nth-child(2) button {
+  flex: 1;
+  padding: 10px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+form > div:nth-child(2) button:hover {
+  color: var(--text-main);
+}
+
+form > div:nth-child(2) button.active {
+  background: #26262c;
+  color: var(--text-main);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* ========================================= */
+/* СТИЛИЗАЦИЯ ИНПУТОВ И ЛЕЙБЛОВ               */
+/* ========================================= */
+label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: -12px; /* Прижимаем к инпуту */
+  margin-left: 2px;
+}
+
+input {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--bg-input);
+  border: 2px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 15px;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+input::placeholder {
+  color: #5c5c66;
+}
+
+input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(145, 70, 255, 0.2);
+  background: #121214;
+}
+
+/* ========================================= */
+/* КНОПКА ОТПРАВКИ                           */
+/* ========================================= */
+button.submit {
+  width: 100%;
+  padding: 14px;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 10px;
+}
+
+button.submit:hover:not(:disabled) {
+  background: var(--accent-hover);
+  box-shadow: 0 0 15px rgba(145, 70, 255, 0.3);
+}
+
+button.submit:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+button.submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ========================================= */
+/* БЛОКИ ОШИБОК / УВЕДОМЛЕНИЙ                */
+/* ========================================= */
+form > div:last-child:not(:nth-child(2)) {
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  text-align: center;
+  font-weight: 500;
+  background: var(--error-bg);
+  color: var(--error-text);
+  border: 1px solid rgba(235, 4, 0, 0.3);
+  margin-top: -4px;
+}
+
+/* ========================================= */
+/* ЭКРАН "ВЫ В СИСТЕМЕ"                      */
+/* ========================================= */
+#root > div {
+  align-items: center;
+  text-align: center;
+}
+
+#root > div h1 {
+  margin-bottom: 24px;
+}
+
+#root > div p {
+  color: var(--text-main);
+  font-size: 16px;
+  margin: 4px 0;
+}
+
+#root > div p:first-of-type {
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 2px;
+}
+
+#root > div button {
+  margin-top: 24px;
+  padding: 12px 40px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+#root > div button:hover {
+  background: #26262c;
+  border-color: #3f3f46;
+}
