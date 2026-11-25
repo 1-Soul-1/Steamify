@@ -8,14 +8,23 @@ pip install uvicorn["standard"] sqlalchemy pyjwt pwdlib["argon2"] python-multipa
 pip install requirements.txt
 pip freeze > requirements.txt
 
-python -c "from pathlib import Path; import secrets; Path('.env').write_text(f'JWT_SECRET_KEY={secrets.token_hex(32)}', encoding='utf-8')" - если нет JWT_SECRET_KEY
+python -c "from pathlib import Path; import secrets; Path('.env').write_text(f'JWT_SECRET_KEY={secrets.token_hex(32)}', encoding='utf-8')"
 
 uvicorn main:app --reload
 
-npm create vite@latest 
+npm create vite@latest - если нет JWT_SECRET_KEY
 npm i
 cd client -> npm install axios
 
 cd backend --> python main.py runserver
 cd client --> npm run dev
+cd chat --> go run main.go
 
+
+
+
+
+go mod init chat
+go get github.com/gorilla/websocket
+go get github.com/golang-jwt/jwt/v5
+go get github.com/joho/godotenv
