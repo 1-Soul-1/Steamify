@@ -16,9 +16,10 @@ npm create vite@latest - если нет JWT_SECRET_KEY
 npm i
 cd client -> npm install axios
 
+ЗАПУСК:
 cd backend --> python main.py runserver
-cd client --> npm run dev
 cd chat --> go run main.go
+cd client --> npm run dev
 
 
 
