@@ -40,3 +40,11 @@ export const login = (email:string, password:string) =>
     api.post<Token>("/login", new URLSearchParams({username:email, password})).then((r) => r.data);
 
 export const me = () => api.get<User>("/me").then((r) => r.data);
+
+const STREAM_API = "http://127.0.0.1:8080/api/stream";
+
+export const startTestStream = () =>
+    fetch(`${STREAM_API}/start`, { method: "POST" }).then(r => r.json());
+
+export const stopTestStream = () =>
+    fetch(`${STREAM_API}/stop`, { method: "POST" }).then(r => r.json());

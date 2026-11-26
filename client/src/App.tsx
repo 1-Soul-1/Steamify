@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { login, me, register, type User } from './api'
 import { Chat } from './Chat'
+import { Stream } from './Stream'
 import './App.css'
 
 type Mode = "login" | "register"
@@ -14,27 +15,41 @@ function App() {
   const [error, setError] = useState("")
   const [notice, setNotice] = useState("")
   const [busy, setBusy] = useState(false)
+  
+  // Состояние камеры: null (проверяется), true (есть), false (нет)
+  const [hasCamera, setHasCamera] = useState<boolean | null>(null);
 
-  // ЕСЛИ ЕСТЬ СОХРАНЁННЫЕ ТОКЕНЫ, ТО ПРОВЕРЯЕМ ИХ ЧЕРЕЗ /me
   useEffect(() => {
     if (!token) {
       setUser(null)
       return
     }
-    me()
-      .then(setUser)
-      .catch(() => {
-        localStorage.removeItem('token')
-        setToken(null)
-      })
+    me().then(setUser).catch(() => {
+      localStorage.removeItem('token')
+      setToken(null)
+    })
   }, [token])
+
+  // Проверка наличия камеры
+  useEffect(() => {
+    if (token) {
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then((stream) => {
+          setHasCamera(true);
+          // Сразу выключаем камеру, чтобы не горел индикатор
+          stream.getTracks().forEach(track => track.stop());
+        })
+        .catch(() => {
+          setHasCamera(false);
+        });
+    }
+  }, [token]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     setNotice("")
     setBusy(true)
-
     try {
       if (mode === "register") {
         await register(email, password)
@@ -57,53 +72,41 @@ function App() {
     setPassword("")
   }
 
-  if (token && !user) return <div>Проверяем токен на уникальность.</div>
+  if (token && !user) return <div>Проверяем токен...</div>
 
   if (token && user) return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center' }}>
-      <div className="card" style={{ textAlign: 'center' }}>
-        <h1>Вы в системе</h1>
-        <p>Id: {user.id}</p>
-        <p>Email: {user.email}</p>
-        <button onClick={log_out}>Выйти</button>
+    <div className="app-layout">
+      <div className="sidebar">
+        <div className="card" style={{ textAlign: 'center', padding: '20px' }}>
+          <h2>Вы в системе</h2>
+          <p style={{ marginBottom: '15px' }}>Email: {user.email}</p>
+          <button onClick={log_out} className="secondary">Выйти</button>
+        </div>
+        <Chat token={token} />
       </div>
       
-      {/* ДОБАВЛЯЕМ ЧАТ */}
-      <Chat token={token} />
+      <div className="main-content">
+        {/* Передаем состояние камеры в Stream */}
+        <Stream hasCamera={hasCamera} />
+      </div>
     </div>
   )
 
   return (
     <>
-      <form action="" onSubmit={submit}>
+      <form onSubmit={submit}>
         <h1>Streamify</h1>
-        <div>
-          <button
-          type='button'
-          className={mode === "login" ? "active":""}
-          onClick={() => {setMode('login'); setError(""); setNotice("");}}
-          >Вход
-          </button>
-
-          <button
-          type='button'
-          className={mode === "register" ? "active":""}
-          onClick={() => {setMode('register'); setError(""); setNotice("");}}
-          >Регистрация
-          </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button type='button' className={mode === "login" ? "active" : ""} onClick={() => { setMode('login'); setError(""); setNotice(""); }}>Вход</button>
+          <button type='button' className={mode === "register" ? "active" : ""} onClick={() => { setMode('register'); setError(""); setNotice(""); }}>Регистрация</button>
         </div>
-
-        <label htmlFor="">Email</label>
+        <label>Email</label>
         <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder='Введите email' />
-
-        <label htmlFor="">Пароль</label>
-        <input type="password" required minLength={8} value={password} onChange={(e) =>setPassword(e.target.value)} placeholder='Введите пароль' />
-
-        <button className='submit' disabled={busy}>{busy ? "Подождите...": mode === "login" ? "Войти": "Создать аккаунт"}</button>
-
-        {error && <div>{error}</div>}
-        {notice && !error && <div>{notice}</div>}
-
+        <label>Пароль</label>
+        <input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} placeholder='Введите пароль' />
+        <button className='submit' disabled={busy}>{busy ? "Подождите..." : mode === "login" ? "Войти" : "Создать аккаунт"}</button>
+        {error && <div className="error">{error}</div>}
+        {notice && !error && <div style={{ color: 'var(--accent)', textAlign: 'center' }}>{notice}</div>}
       </form>
     </>
   )
