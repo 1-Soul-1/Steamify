@@ -79,12 +79,13 @@ class TokenResponse(BaseModel):
 
 
 # СОЗДАНИЕ JWT
-def create_access_token(user_id: int) -> str:
+def create_access_token(user_id: int, email: str) -> str:
     expire = datetime.now(timezone.utc) + timedelta(
         minutes=ACCESS_TOKEN_EXPIRE_MINUTES
     )
     payload = {
         "sub": str(user_id),
+        "email": email,
         "exp": expire,
     }
     token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
@@ -189,25 +190,27 @@ def register(data: UserCreate, db: Annotated[Session, Depends(get_db)],):
     response_model=TokenResponse,
 )
 
-def login(form: Annotated[OAuth2PasswordRequestForm, Depends()], db: Annotated[Session, Depends(get_db)],):
+def login(form: Annotated[OAuth2PasswordRequestForm, Depends()], db: Annotated[Session, Depends(get_db)]):
     email = form.username.strip().lower()
     user = db.scalar(select(User).where(User.email == email))
     
     if user is None:
-        password_hash.verify(form.password.password_hash.hash("dummy"))
+        # ИСПРАВЛЕНО: Было form.password.password_hash.hash("dummy")
+        password_hash.verify(form.password, password_hash.hash("dummy_password_123"))
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Неверный логин и/или пароль.",
-            headers = {"WWW-Authenticate":"Bearer"}
+            headers={"WWW-Authenticate": "Bearer"}
         )
     if not password_hash.verify(form.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Неверный логин и/или пароль.",
-            headers = {"WWW-Authenticate":"Bearer"}
+            headers={"WWW-Authenticate": "Bearer"}
         )
 
-    token = create_access_token(user.id)
+    # ИСПРАВЛЕНО: передаем email в функцию
+    token = create_access_token(user.id, user.email)
     return TokenResponse(
         access_token=token,
         token_type="bearer",

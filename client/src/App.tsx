@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { login, me, register, type User } from './api'
+import { Chat } from './Chat'
 import './App.css'
 
 type Mode = "login" | "register"
@@ -59,11 +60,16 @@ function App() {
   if (token && !user) return <div>Проверяем токен на уникальность.</div>
 
   if (token && user) return (
-    <div>
-      <h1>Вы в системе</h1>
-      <p>Id: {user.id}</p>
-      <p>Email: {user.email}</p>
-      <button onClick={log_out}>Выйти</button>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center' }}>
+      <div className="card" style={{ textAlign: 'center' }}>
+        <h1>Вы в системе</h1>
+        <p>Id: {user.id}</p>
+        <p>Email: {user.email}</p>
+        <button onClick={log_out}>Выйти</button>
+      </div>
+      
+      {/* ДОБАВЛЯЕМ ЧАТ */}
+      <Chat token={token} />
     </div>
   )
 
