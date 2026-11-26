@@ -36,7 +36,7 @@ function App() {
     navigator.mediaDevices.getUserMedia({ video: true })
       .then((stream) => {
         setHasCamera(true)
-        stream.getTracks().forEach(track => track.stop()) // Сразу выключаем камеру
+        stream.getTracks().forEach(track => track.stop())
       })
       .catch(() => {
         setHasCamera(false)
@@ -71,7 +71,6 @@ function App() {
     setPassword("")
   }
 
-  // Управление стримом
   const handleStartStream = async () => {
     try {
       await startTestStream()

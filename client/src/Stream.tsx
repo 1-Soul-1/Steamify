@@ -8,11 +8,12 @@ export const Stream = ({ isLive }: { isLive: boolean }) => {
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !isLive) {
-      setError(false); // Сбрасываем ошибку при выключении
+      setError(false);
       return;
     }
 
-    const src = 'http://127.0.0.1:8080/hls/stream.m3u8';
+    // Относительный путь через прокси Vite
+    const src = `/hls/stream.m3u8`;
     let hls: Hls | null = null;
     let retryTimeout: ReturnType<typeof setTimeout>;
 

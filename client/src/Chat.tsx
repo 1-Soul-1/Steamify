@@ -13,8 +13,11 @@ export const Chat = ({ token }: { token: string }) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Подключаемся к Go-серверу, передавая токен
-    ws.current = new WebSocket(`ws://127.0.0.1:8080/ws?token=${token}`);
+    // Автоматически выбираем wss:// если сайт работает по https (Dev Tunnels)
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    
+    // Подключаемся к Vite, который проксирует на Go-сервер
+    ws.current = new WebSocket(`${protocol}//${window.location.host}/go/ws?token=${token}`);
 
     ws.current.onmessage = (event) => {
       const msg = JSON.parse(event.data);
@@ -41,39 +44,45 @@ export const Chat = ({ token }: { token: string }) => {
     setInput("");
   };
 
-    return (
+  return (
     <div style={{ 
       display: 'flex', 
       flexDirection: 'column', 
-      flex: 1,
-      height: 'calc(100vh - 120px)', // Занимает почти всю высоту экрана
-      minHeight: '400px',
-      width: '100%', // Занимает всю ширину сайдбара
+      flex: 1,        // Занимает всё оставшееся пространство в сайдбаре
+      minHeight: 0,   // Позволяет контейнеру сжиматься
+      width: '100%', 
       background: 'var(--card-bg)', 
       padding: '16px', 
       borderRadius: '12px', 
-      border: '1px solid var(--border)', 
-      overflow: 'hidden'
+      border: '1px solid var(--border)' 
     }}>
       <h2 style={{ marginBottom: '10px', textAlign: 'center' }}>Чат Стрима</h2>
       
       <div style={{ 
         flex: 1, 
         overflowY: 'auto', 
-        overflowX: 'hidden',
+        overflowX: 'hidden', // Скрываем горизонтальный скролл
         display: 'flex', 
         flexDirection: 'column', 
         gap: '10px', 
         marginBottom: '15px',
-        paddingRight: '5px' // Место под скроллбар
+        paddingRight: '5px' 
       }}>
         {messages.map((msg, i) => (
-          <div key={i} style={{ fontSize: '14px', wordBreak: 'break-word', width: '100%' }}>
+          <div key={i} style={{ 
+            fontSize: '14px', 
+            wordBreak: 'break-word', 
+            width: '100%' 
+          }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
               <span style={{ color: 'var(--accent)', fontWeight: 'bold' }}>{msg.username}</span>
               <span style={{ color: 'var(--text)', fontSize: '12px' }}>{msg.time}</span>
             </div>
-            <p style={{ margin: '2px 0 0 0', color: 'var(--text-h)', overflowWrap: 'anywhere' }}>
+            <p style={{ 
+              margin: '2px 0 0 0', 
+              color: 'var(--text-h)', 
+              overflowWrap: 'anywhere' // Перенос длинных строк без пробелов
+            }}>
               {msg.text}
             </p>
           </div>
@@ -87,10 +96,10 @@ export const Chat = ({ token }: { token: string }) => {
           value={input} 
           onChange={(e) => setInput(e.target.value)} 
           placeholder="Написать сообщение..." 
-          style={{ flex: 1 }} // Инпут растягивается
+          style={{ flex: 1 }}
         />
         <button type="submit" style={{ width: 'auto', padding: '0 16px' }}>➤</button>
       </form>
     </div>
   );
-}
+};

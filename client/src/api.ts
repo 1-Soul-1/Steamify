@@ -2,9 +2,8 @@
 import axios, { AxiosError } from "axios"
 
 export const api = axios.create({
-    baseURL: "http://127.0.0.1:8000",
+    baseURL: `/api`, // <--- Идет через прокси Vite на :8000
 })
-
 
 // СДЕЛАТЬ ТАК, ЧТОБЫ ТОКЕН ЦЕПЛЯЛСЯ КО ВСЕМ ЗАПРОСАМ
 api.interceptors.request.use((config) => {
@@ -12,7 +11,6 @@ api.interceptors.request.use((config) => {
     if(token) config.headers.Authorization = `Bearer ${token}`;
     return config
 })
-
 
 // У НАС ЕСТЬ detail ОШИБКИ НА FastAPI. ЗАМЕНИМ ИХ НА ОШИБКИ В КЛИЕНТЕ
 api.interceptors.response.use((res) => res,
@@ -35,13 +33,13 @@ export type Token = {access_token:string, token_type:string}
 export const register = (email:string, password:string) =>
     api.post<User>("/register",{email, password}).then((r) => r.data);
 
-
 export const login = (email:string, password:string) =>
     api.post<Token>("/login", new URLSearchParams({username:email, password})).then((r) => r.data);
 
 export const me = () => api.get<User>("/me").then((r) => r.data);
 
-const STREAM_API = "http://127.0.0.1:8080/api/stream";
+// --- Управление стримом (через прокси Go) ---
+const STREAM_API = `/go/api/stream`;
 
 export const startTestStream = () =>
     fetch(`${STREAM_API}/start`, { method: "POST" }).then(r => r.json());
