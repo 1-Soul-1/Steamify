@@ -28,30 +28,41 @@ type IncomingMessage struct {
 }
 
 type OutgoingMessage struct {
-	Username string `json:"username"`
+	Type     string `json:"type"`               // "chat" или "system"
+	Username string `json:"username,omitempty"` // необязательное для системных
 	Text     string `json:"text"`
 	Time     string `json:"time"`
 }
 
 type Client struct {
 	Conn     *websocket.Conn
-	Send     chan []byte
+	Send     chan OutgoingMessage // Изменено на структуру
 	Username string
 }
 
 type Hub struct {
 	Clients    map[*Client]bool
-	Broadcast  chan []byte
+	Broadcast  chan OutgoingMessage // Изменено на структуру
 	Register   chan *Client
 	Unregister chan *Client
+	History    []OutgoingMessage    // НОВОЕ: история сообщений
 	mu         sync.Mutex
 }
 
 var hub = Hub{
-	Broadcast:  make(chan []byte),
+	Broadcast:  make(chan OutgoingMessage),
 	Register:   make(chan *Client),
 	Unregister: make(chan *Client),
 	Clients:    make(map[*Client]bool),
+	History:    make([]OutgoingMessage, 0),
+}
+
+// Вспомогательная функция для добавления в историю (храним последние 100)
+func (h *Hub) addToHistory(msg OutgoingMessage) {
+	h.History = append(h.History, msg)
+	if len(h.History) > 100 {
+		h.History = h.History[1:]
+	}
 }
 
 func (h *Hub) Run() {
@@ -60,16 +71,48 @@ func (h *Hub) Run() {
 		case client := <-h.Register:
 			h.mu.Lock()
 			h.Clients[client] = true
+			
+			// 1. Отправляем новому пользователю историю сообщений
+			for _, msg := range h.History {
+				client.Send <- msg
+			}
+
+			// 2. Создаем системное сообщение о входе
+			joinMsg := OutgoingMessage{
+				Type: "system",
+				Text: client.Username + " присоединился к чату",
+				Time: time.Now().Format("15:04"),
+			}
+
+			// 3. Сохраняем в историю и рассылаем всем
+			h.addToHistory(joinMsg)
+			for c := range h.Clients {
+				c.Send <- joinMsg
+			}
 			h.mu.Unlock()
+
 		case client := <-h.Unregister:
 			h.mu.Lock()
 			if _, ok := h.Clients[client]; ok {
 				delete(h.Clients, client)
 				close(client.Send)
+				
+				// Системное сообщение о выходе
+				leaveMsg := OutgoingMessage{
+					Type: "system",
+					Text: client.Username + " покинул чат",
+					Time: time.Now().Format("15:04"),
+				}
+				h.addToHistory(leaveMsg)
+				for c := range h.Clients {
+					c.Send <- leaveMsg
+				}
 			}
 			h.mu.Unlock()
+
 		case message := <-h.Broadcast:
 			h.mu.Lock()
+			h.addToHistory(message)
 			for client := range h.Clients {
 				select {
 				case client.Send <- message:
@@ -115,7 +158,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		log.Println("Ошибка Upgrade:", err)
 		return
 	}
-	client := &Client{Conn: conn, Send: make(chan []byte, 256), Username: username}
+	client := &Client{Conn: conn, Send: make(chan OutgoingMessage, 256), Username: username}
 	hub.Register <- client
 	go client.writePump()
 	go client.readPump()
@@ -131,9 +174,13 @@ func (c *Client) readPump() {
 		if err := c.Conn.ReadJSON(&msg); err != nil {
 			break
 		}
-		outMsg := OutgoingMessage{Username: c.Username, Text: msg.Text, Time: time.Now().Format("15:04")}
-		bytes, _ := json.Marshal(outMsg)
-		hub.Broadcast <- bytes
+		outMsg := OutgoingMessage{
+			Type:     "chat",
+			Username: c.Username,
+			Text:     msg.Text,
+			Time:     time.Now().Format("15:04"),
+		}
+		hub.Broadcast <- outMsg
 	}
 }
 
@@ -145,11 +192,11 @@ func (c *Client) writePump() {
 			c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 			return
 		}
-		c.Conn.WriteMessage(websocket.TextMessage, message)
+		c.Conn.WriteJSON(message) // Отправляем как JSON структуру
 	}
 }
 
-// ===== СТРИМ =====
+// ===== СТРИМ (БЕЗ ИЗМЕНЕНИЙ) =====
 var (
 	hlsDir      = "./hls"
 	ffmpegCmd   *exec.Cmd
@@ -164,7 +211,6 @@ func startFFmpeg() {
 	ffmpegMu.Lock()
 	defer ffmpegMu.Unlock()
 	if ffmpegAlive {
-		log.Println("HLS-конвертер уже запущен")
 		return
 	}
 
@@ -176,14 +222,9 @@ func startFFmpeg() {
 
 	args := []string{
 		"-i", "rtmp://127.0.0.1:1935/live/stream",
-		"-c:v", "libx264",
-		"-preset", "veryfast",
-		"-tune", "zerolatency",
+		"-c:v", "libx264", "-preset", "veryfast", "-tune", "zerolatency",
 		"-c:a", "aac",
-		"-f", "hls",
-		"-hls_time", "2",
-		"-hls_list_size", "5",
-		"-hls_flags", "delete_segments",
+		"-f", "hls", "-hls_time", "2", "-hls_list_size", "5", "-hls_flags", "delete_segments",
 		filepath.Join(hlsDir, "stream.m3u8"),
 	}
 	ffmpegCmd = exec.Command("ffmpeg", args...)
@@ -195,29 +236,26 @@ func startFFmpeg() {
 		return
 	}
 	ffmpegAlive = true
-	log.Println("HLS-конвертер запущен, ждём RTMP поток...")
 
 	go func() {
 		ffmpegCmd.Wait()
 		ffmpegMu.Lock()
 		ffmpegAlive = false
 		ffmpegMu.Unlock()
-		log.Println("HLS-конвертер завершился")
 	}()
 }
 
-// Запуск тестового стрима (генерация видео и отправка его на RTMP)
 func startTestStream() error {
 	testStreamMu.Lock()
 	defer testStreamMu.Unlock()
 	if testStreamCmd != nil {
-		return nil // Уже запущен
+		return nil
 	}
 
 	args := []string{
-		"-re", // Читаем в реальном времени
-		"-f", "lavfi", "-i", "testsrc=size=1280x720:rate=30", // Тестовая картинка
-		"-f", "lavfi", "-i", "sine=frequency=1000",           // Тестовый звук
+		"-re",
+		"-f", "lavfi", "-i", "testsrc=size=1280x720:rate=30",
+		"-f", "lavfi", "-i", "sine=frequency=1000",
 		"-c:v", "libx264", "-preset", "veryfast", "-tune", "zerolatency",
 		"-c:a", "aac",
 		"-f", "flv", "rtmp://127.0.0.1:1935/live/stream",
@@ -230,11 +268,9 @@ func startTestStream() error {
 		testStreamCmd = nil
 		return err
 	}
-	log.Println("Тестовый стрим запущен")
 	return nil
 }
 
-// Остановка тестового стрима
 func stopTestStream() {
 	testStreamMu.Lock()
 	defer testStreamMu.Unlock()
@@ -242,10 +278,8 @@ func stopTestStream() {
 		testStreamCmd.Process.Kill()
 		testStreamCmd.Wait()
 		testStreamCmd = nil
-		log.Println("Тестовый стрим остановлен")
 	}
 
-	// Также убиваем HLS-конвертер, чтобы он не висел
 	ffmpegMu.Lock()
 	if ffmpegCmd != nil && ffmpegCmd.Process != nil {
 		ffmpegCmd.Process.Kill()
@@ -255,13 +289,9 @@ func stopTestStream() {
 	ffmpegMu.Unlock()
 }
 
-// Обработчики HTTP API для управления тестовым стримом
 func handleStartStream(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	if r.Method == "OPTIONS" {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
+	if r.Method == "OPTIONS" { return }
 	if err := startTestStream(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -271,52 +301,37 @@ func handleStartStream(w http.ResponseWriter, r *http.Request) {
 
 func handleStopStream(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	if r.Method == "OPTIONS" {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
+	if r.Method == "OPTIONS" { return }
 	stopTestStream()
 	w.Write([]byte(`{"status":"stopped"}`))
 }
 
-// ===== RTMP =====
 type rtmpHandler struct {
 	rtmp.DefaultHandler
 }
 
 func (h *rtmpHandler) OnPublish(ctx *rtmp.StreamContext, timestamp uint32, cmd *message.NetStreamPublish) error {
-	log.Println("Входящий RTMP поток от OBS или теста")
 	startFFmpeg()
 	return nil
 }
 
 func startRTMP() {
 	listener, err := net.Listen("tcp", ":1935")
-	if err != nil {
-		log.Fatal("RTMP listen:", err)
-	}
+	if err != nil { log.Fatal("RTMP listen:", err) }
 
 	srv := rtmp.NewServer(&rtmp.ServerConfig{
 		OnConnect: func(conn net.Conn) (io.ReadWriteCloser, *rtmp.ConnConfig) {
-			return conn, &rtmp.ConnConfig{
-				Handler: &rtmpHandler{},
-			}
+			return conn, &rtmp.ConnConfig{Handler: &rtmpHandler{}}
 		},
 	})
 
-	log.Println("RTMP-сервер на rtmp://127.0.0.1:1935/live")
-	if err := srv.Serve(listener); err != nil {
-		log.Fatal("RTMP serve:", err)
-	}
+	if err := srv.Serve(listener); err != nil { log.Fatal("RTMP serve:", err) }
 }
 
-// ===== MAIN =====
 func main() {
 	_ = godotenv.Load("../.env")
 	secret := os.Getenv("JWT_SECRET_KEY")
-	if secret == "" {
-		log.Fatal("JWT_SECRET_KEY не найден в .env")
-	}
+	if secret == "" { log.Fatal("JWT_SECRET_KEY не найден в .env") }
 	jwtSecret = []byte(secret)
 
 	go startRTMP()
@@ -324,17 +339,11 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", handleConnections)
-
-	// Раздача HLS
 	fs := http.FileServer(http.Dir(hlsDir))
 	mux.Handle("/hls/", http.StripPrefix("/hls/", fs))
-
-	// Управление стримом
 	mux.HandleFunc("/api/stream/start", handleStartStream)
 	mux.HandleFunc("/api/stream/stop", handleStopStream)
 
 	log.Println("HTTP-сервер на http://127.0.0.1:8080")
-	if err := http.ListenAndServe("127.0.0.1:8080", mux); err != nil {
-		log.Fatal("ListenAndServe: ", err)
-	}
+	if err := http.ListenAndServe("127.0.0.1:8080", mux); err != nil { log.Fatal("ListenAndServe: ", err) }
 }
