@@ -1,28 +1,20 @@
-//  ВСЕ ЗАПРОСЫ К БД
 import axios, { AxiosError } from "axios"
 
-export const api = axios.create({
-    baseURL: `/api`, // <--- Идет через прокси Vite на :8000
-})
+export const api = axios.create({ baseURL: `/api` })
 
-// СДЕЛАТЬ ТАК, ЧТОБЫ ТОКЕН ЦЕПЛЯЛСЯ КО ВСЕМ ЗАПРОСАМ
 api.interceptors.request.use((config) => {
     const token = localStorage.getItem("token");
     if(token) config.headers.Authorization = `Bearer ${token}`;
     return config
 })
 
-// У НАС ЕСТЬ detail ОШИБКИ НА FastAPI. ЗАМЕНИМ ИХ НА ОШИБКИ В КЛИЕНТЕ
 api.interceptors.response.use((res) => res,
     (error:AxiosError<{detail:unknown}>) => {
-        if(!error.response) {
-            return Promise.reject(new Error("Backend недоступен."))
-        };
+        if(!error.response) return Promise.reject(new Error("Backend недоступен."))
         const detail = error.response.data?.detail;
         let message = `Ошибка: ${error.response.status}`;
         if(typeof detail == "string") message = detail;
-        else if(Array.isArray(detail))
-            message = detail.map((e:{msg:string}) => e.msg).join(';');
+        else if(Array.isArray(detail)) message = detail.map((e:{msg:string}) => e.msg).join(';');
         return Promise.reject(new Error(message))
     }
 );
@@ -38,11 +30,12 @@ export const login = (email:string, password:string) =>
 
 export const me = () => api.get<User>("/me").then((r) => r.data);
 
-// --- Управление стримом (через прокси Go) ---
-const STREAM_API = `/go/api/stream`;
+// --- Управление стримами ---
+export const getStreams = () => 
+    fetch('/go/api/streams').then(r => r.json());
 
-export const startTestStream = () =>
-    fetch(`${STREAM_API}/start`, { method: "POST" }).then(r => r.json());
+export const startTestStream = (room: string) =>
+    fetch(`/go/api/stream/start?room=${encodeURIComponent(room)}`, { method: "POST" }).then(r => r.json());
 
-export const stopTestStream = () =>
-    fetch(`${STREAM_API}/stop`, { method: "POST" }).then(r => r.json());
+export const stopTestStream = (room: string) =>
+    fetch(`/go/api/stream/stop?room=${encodeURIComponent(room)}`, { method: "POST" }).then(r => r.json());
