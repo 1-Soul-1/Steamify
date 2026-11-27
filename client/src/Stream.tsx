@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
 
-export const Stream = ({ isLive }: { isLive: boolean }) => {
+export const Stream = ({ room, isLive }: { room: string, isLive: boolean }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState(false);
 
@@ -12,8 +12,7 @@ export const Stream = ({ isLive }: { isLive: boolean }) => {
       return;
     }
 
-    // Относительный путь через прокси Vite
-    const src = `/hls/stream.m3u8`;
+    const src = `/hls/${room}/stream.m3u8`;
     let hls: Hls | null = null;
     let retryTimeout: ReturnType<typeof setTimeout>;
 
@@ -54,17 +53,15 @@ export const Stream = ({ isLive }: { isLive: boolean }) => {
       if (hls) hls.destroy();
       clearTimeout(retryTimeout);
     };
-  }, [isLive]);
+  }, [room, isLive]);
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       {(!isLive || error) && (
         <div style={{
           position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-          background: '#111',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: 'var(--text)', fontSize: '18px', flexDirection: 'column', gap: '10px',
-          zIndex: 10
+          background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'var(--text)', fontSize: '18px', flexDirection: 'column', gap: '10px', zIndex: 10
         }}>
           <span style={{ fontSize: '50px' }}>📴</span>
           <span>{isLive ? "Ожидание сигнала от сервера..." : "Стрим не активен"}</span>
@@ -72,18 +69,8 @@ export const Stream = ({ isLive }: { isLive: boolean }) => {
       )}
       <video
         ref={videoRef}
-        autoPlay
-        muted
-        controls
-        style={{ 
-          width: '100%', 
-          height: '100%', 
-          maxHeight: '100%',
-          maxWidth: '100%',
-          background: '#000', 
-          display: 'block',
-          objectFit: 'contain'
-        }}
+        autoPlay muted controls
+        style={{ width: '100%', height: '100%', maxHeight: '100%', maxWidth: '100%', background: '#000', display: 'block', objectFit: 'contain' }}
       />
     </div>
   );
