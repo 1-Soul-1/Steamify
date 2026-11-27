@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 type Message = {
-  username: string;
+  type?: "chat" | "system"; // Добавили тип
+  username?: string;
   text: string;
   time: string;
 };
@@ -13,10 +14,7 @@ export const Chat = ({ token }: { token: string }) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Автоматически выбираем wss:// если сайт работает по https (Dev Tunnels)
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    
-    // Подключаемся к Vite, который проксирует на Go-сервер
     ws.current = new WebSocket(`${protocol}//${window.location.host}/go/ws?token=${token}`);
 
     ws.current.onmessage = (event) => {
@@ -31,7 +29,6 @@ export const Chat = ({ token }: { token: string }) => {
     };
   }, [token]);
 
-  // Автоскролл вниз
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -45,48 +42,49 @@ export const Chat = ({ token }: { token: string }) => {
   };
 
   return (
-    <div style={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
-      flex: 1,        // Занимает всё оставшееся пространство в сайдбаре
-      minHeight: 0,   // Позволяет контейнеру сжиматься
-      width: '100%', 
-      background: 'var(--card-bg)', 
-      padding: '16px', 
-      borderRadius: '12px', 
-      border: '1px solid var(--border)' 
-    }}>
-      <h2 style={{ marginBottom: '10px', textAlign: 'center' }}>Чат Стрима</h2>
+    <div className="chat-box">
+      <h2 style={{ marginBottom: '10px' }}>Чат Стрима</h2>
       
       <div style={{ 
         flex: 1, 
         overflowY: 'auto', 
-        overflowX: 'hidden', // Скрываем горизонтальный скролл
+        overflowX: 'hidden',
         display: 'flex', 
         flexDirection: 'column', 
         gap: '10px', 
         marginBottom: '15px',
         paddingRight: '5px' 
       }}>
-        {messages.map((msg, i) => (
-          <div key={i} style={{ 
-            fontSize: '14px', 
-            wordBreak: 'break-word', 
-            width: '100%' 
-          }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-              <span style={{ color: 'var(--accent)', fontWeight: 'bold' }}>{msg.username}</span>
-              <span style={{ color: 'var(--text)', fontSize: '12px' }}>{msg.time}</span>
+        {messages.map((msg, i) => {
+          // Если это системное сообщение (вход/выход) — рендерим по-другому
+          if (msg.type === "system") {
+            return (
+              <div key={i} style={{ 
+                textAlign: 'center', 
+                fontSize: '13px', 
+                color: 'var(--text)', 
+                fontStyle: 'italic',
+                margin: '5px 0',
+                opacity: 0.8
+              }}>
+                {msg.text}
+              </div>
+            );
+          }
+
+          // Обычное сообщение от пользователя
+          return (
+            <div key={i} style={{ fontSize: '14px', wordBreak: 'break-word', width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                <span style={{ color: 'var(--accent)', fontWeight: 'bold' }}>{msg.username}</span>
+                <span style={{ color: 'var(--text)', fontSize: '12px' }}>{msg.time}</span>
+              </div>
+              <p style={{ margin: '2px 0 0 0', color: 'var(--text-h)', overflowWrap: 'anywhere' }}>
+                {msg.text}
+              </p>
             </div>
-            <p style={{ 
-              margin: '2px 0 0 0', 
-              color: 'var(--text-h)', 
-              overflowWrap: 'anywhere' // Перенос длинных строк без пробелов
-            }}>
-              {msg.text}
-            </p>
-          </div>
-        ))}
+          );
+        })}
         <div ref={bottomRef} />
       </div>
 
